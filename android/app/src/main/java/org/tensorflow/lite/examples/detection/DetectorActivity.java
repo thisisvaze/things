@@ -15,6 +15,9 @@
  */
 
 package org.tensorflow.lite.examples.detection;
+import static android.view.KeyEvent.ACTION_DOWN;
+import static android.view.KeyEvent.KEYCODE_DPAD_LEFT;
+import static android.view.KeyEvent.KEYCODE_DPAD_RIGHT;
 
 import android.graphics.Bitmap;
 import android.graphics.Bitmap.Config;
@@ -26,17 +29,19 @@ import android.graphics.Paint.Style;
 import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.media.ImageReader.OnImageAvailableListener;
+import android.os.Bundle;
 import android.os.SystemClock;
+import android.speech.RecognitionListener;
 import android.util.Log;
 import android.util.Size;
 import android.util.TypedValue;
+import android.view.KeyEvent;
+import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
+
+
 import org.tensorflow.lite.examples.detection.customview.OverlayView;
-import org.tensorflow.lite.examples.detection.customview.OverlayView.DrawCallback;
 import org.tensorflow.lite.examples.detection.env.BorderedText;
 import org.tensorflow.lite.examples.detection.env.ImageUtils;
 import org.tensorflow.lite.examples.detection.env.Logger;
@@ -44,10 +49,10 @@ import org.tensorflow.lite.examples.detection.tflite.Detector;
 import org.tensorflow.lite.examples.detection.tflite.TFLiteObjectDetectionAPIModel;
 import org.tensorflow.lite.examples.detection.tracking.MultiBoxTracker;
 
-/**
- * An activity that uses a TensorFlowMultiBoxDetector and ObjectTracker to detect and then track
- * objects.
- */
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
 public class DetectorActivity extends CameraActivity implements OnImageAvailableListener {
   private static final Logger LOGGER = new Logger();
 
@@ -68,7 +73,7 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
 
   private Detector detector;
 
-
+  private int selectedLanguageCode = 0;
   private long lastProcessingTimeMs;
   private Bitmap rgbFrameBitmap = null;
   private Bitmap croppedBitmap = null;
@@ -92,7 +97,7 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
             TypedValue.COMPLEX_UNIT_DIP, TEXT_SIZE_DIP, getResources().getDisplayMetrics());
     borderedText = new BorderedText(textSizePx);
     borderedText.setTypeface(Typeface.MONOSPACE);
-    tracker = new MultiBoxTracker(this, nameOfObject);
+    tracker = new MultiBoxTracker(this, nameOfObject, nameOfObjectInNativeLanguage, selectedLanguageCode);
 
     int cropSize = TF_OD_API_INPUT_SIZE;
 
@@ -136,7 +141,7 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
 
     trackingOverlay = (OverlayView) findViewById(R.id.tracking_overlay);
     trackingOverlay.addCallback(
-        new DrawCallback() {
+        new OverlayView.DrawCallback() {
           @Override
           public void drawCallback(final Canvas canvas) {
             tracker.draw(canvas);
@@ -240,6 +245,26 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
   protected Size getDesiredPreviewFrameSize() {
     return DESIRED_PREVIEW_SIZE;
   }
+
+  @Override
+  public boolean onKeyDown(int keyCode, KeyEvent event) {
+    Log.d("KEY PRESSED",keyCode+"  "+event.toString());
+    if(event.getAction() == ACTION_DOWN) {
+      if (keyCode == KEYCODE_DPAD_RIGHT) {
+
+        tracker.InitializeTranslator((selectedLanguageCode++)%4);
+
+      } else if (keyCode == KEYCODE_DPAD_LEFT) {
+        tracker.InitializeTranslator((selectedLanguageCode--)%4);
+      }
+    }
+    return false;
+  }
+
+  public void selectLanguage(int languageCode){
+
+  }
+
 
   // Which detection model to use: by default uses Tensorflow Object Detection API frozen
   // checkpoints.

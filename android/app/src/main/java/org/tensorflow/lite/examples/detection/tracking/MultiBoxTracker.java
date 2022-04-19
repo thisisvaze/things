@@ -24,14 +24,27 @@ import android.graphics.Paint.Cap;
 import android.graphics.Paint.Join;
 import android.graphics.Paint.Style;
 import android.graphics.RectF;
+import android.os.Build;
+import android.speech.tts.TextToSpeech;
 import android.text.TextUtils;
 import android.util.Log;
 import android.util.Pair;
 import android.util.TypedValue;
 import android.widget.TextView;
 
+import androidx.annotation.NonNull;
+
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.mlkit.common.model.DownloadConditions;
+import com.google.mlkit.nl.translate.TranslateLanguage;
+import com.google.mlkit.nl.translate.Translation;
+import com.google.mlkit.nl.translate.Translator;
+import com.google.mlkit.nl.translate.TranslatorOptions;
+
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Queue;
 import org.tensorflow.lite.examples.detection.env.BorderedText;
 import org.tensorflow.lite.examples.detection.env.ImageUtils;
@@ -39,7 +52,7 @@ import org.tensorflow.lite.examples.detection.env.Logger;
 import org.tensorflow.lite.examples.detection.tflite.Detector.Recognition;
 
 /** A tracker that handles non-max suppression and matches existing objects to new detections. */
-public class MultiBoxTracker {
+public class MultiBoxTracker implements TextToSpeech.OnInitListener {
   private static final float TEXT_SIZE_DIP = 18;
   private static final float MIN_SIZE = 16.0f;
   private static final int[] COLORS = {
@@ -70,9 +83,19 @@ public class MultiBoxTracker {
   private int frameWidth;
   private int frameHeight;
   private int sensorOrientation;
-  private TextView nameOfObject;
+  private Translator langTranslator;
+  private TextView nameOfObject, nameOfObjectInNativeLanguage;
+  private boolean modelDownloaded = false;
+  private String previousTextDisplayed="";
+  private TextToSpeech textToSpeech;
+  private boolean textToSpeechIsReady = false;
 
-  public MultiBoxTracker(final Context context, TextView nameOfObject) {
+  public MultiBoxTracker(final Context context, TextView nameOfObject, TextView nameOfObjectInNativeLanguage, int selectedLanguageCode) {
+
+    // Create an English-German translator:
+    // Create an English-German translator:
+    InitializeTranslator(selectedLanguageCode);
+
     for (final int color : COLORS) {
       availableColors.add(color);
     }
@@ -85,10 +108,12 @@ public class MultiBoxTracker {
     boxPaint.setStrokeMiter(100);
 
     this.nameOfObject  = nameOfObject;
+    this.nameOfObjectInNativeLanguage = nameOfObjectInNativeLanguage;
     textSizePx =
         TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP, TEXT_SIZE_DIP, context.getResources().getDisplayMetrics());
     borderedText = new BorderedText(textSizePx);
+    textToSpeech = new TextToSpeech(context, this);
   }
 
   public synchronized void setFrameConfiguration(
@@ -96,6 +121,59 @@ public class MultiBoxTracker {
     frameWidth = width;
     frameHeight = height;
     this.sensorOrientation = sensorOrientation;
+  }
+
+  public void InitializeTranslator(int selectedLanguageCode){
+    TranslatorOptions options =
+            new TranslatorOptions.Builder()
+                    .setSourceLanguage(TranslateLanguage.ENGLISH)
+                    .setTargetLanguage(getSelectedLanguagefromCode(selectedLanguageCode))
+                    .build();
+    langTranslator =
+            Translation.getClient(options);
+    DownloadConditions conditions = new DownloadConditions.Builder()
+            .requireWifi()
+            .build();
+    langTranslator.downloadModelIfNeeded(conditions)
+            .addOnSuccessListener(
+                    new OnSuccessListener() {
+                      @Override
+                      public void onSuccess(Object o) {
+
+                        modelDownloaded = true;
+                        Log.i("Model Downloaded", "MODEL DOWNLOADED");
+
+                      }
+                    })
+            .addOnFailureListener(
+                    new OnFailureListener() {
+                      @Override
+                      public void onFailure(@NonNull Exception e) {
+                        // Model couldn’t be downloaded or other internal error.
+                        // ...
+                        modelDownloaded = false;
+                        Log.i("Model Downloaded", "MODEL NOT DOWNLOADED");
+                      }
+                    });
+  }
+
+  public String getSelectedLanguagefromCode(int selectedLanguageCode){
+    switch (selectedLanguageCode){
+      case 0: if(textToSpeechIsReady){textToSpeech.setLanguage(Locale.FRENCH);}
+        return TranslateLanguage.FRENCH;
+      case 1:
+        if(textToSpeechIsReady){textToSpeech.setLanguage(Locale.ITALIAN);}
+        return TranslateLanguage.ITALIAN;
+      case 2:
+        if(textToSpeechIsReady){textToSpeech.setLanguage(Locale.GERMAN);}
+        return TranslateLanguage.GERMAN;
+      case 3:
+        if(textToSpeechIsReady){textToSpeech.setLanguage(Locale.JAPANESE);}
+        return TranslateLanguage.JAPANESE;
+      default:
+        if(textToSpeechIsReady){textToSpeech.setLanguage(Locale.FRENCH);}
+        return TranslateLanguage.FRENCH;
+    }
   }
 
   public synchronized void drawDebug(final Canvas canvas) {
@@ -171,11 +249,44 @@ public class MultiBoxTracker {
 
     if(closestObject != null){
       Log.i("This is to see: ", closestObject.title.toString());
-      this.nameOfObject.setText(closestObject.title);
+
+      final String[] displayText = new String[2];
+      displayText[1] = closestObject.title.toString();
+      langTranslator.translate(closestObject.title)
+              .addOnSuccessListener(
+                      new OnSuccessListener() {
+                        @Override
+                        public void onSuccess(Object o) {
+
+
+                          displayText[0] = o.toString();
+                          if(displayText[0] != null){
+                            nameOfObjectInNativeLanguage.setText(displayText[1]);
+                            nameOfObject.setText(displayText[0]+"\n");
+                           if(!previousTextDisplayed.equals(displayText[0])){
+                             textToSpeech.speak(displayText[0], TextToSpeech.QUEUE_FLUSH, null, null);
+                           }
+                            previousTextDisplayed = displayText[0];
+                            Log.i("translated thing:", displayText[0]);
+                          }
+
+                        }
+
+                      })
+              .addOnFailureListener(
+                      new OnFailureListener() {
+                        @Override
+                        public void onFailure(@NonNull Exception e) {
+                          // Error.
+                          // ...
+                        }
+                      });
+
 
     }
     else{
       this.nameOfObject.setText("");
+      this.nameOfObjectInNativeLanguage.setText("");
     }
 
   }
@@ -228,10 +339,27 @@ public class MultiBoxTracker {
     }
   }
 
+  @Override
+  public void onInit(int status) {
+    if (status == TextToSpeech.SUCCESS) {
+      textToSpeechIsReady = true;
+      int result = textToSpeech.setLanguage(Locale.FRENCH);
+      if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+        Log.e("error", "This Language is not supported");
+      } else {
+        //speak text
+      }
+    } else {
+      Log.e("error", "Failed to Initialize");
+    }
+  }
+
   private static class TrackedRecognition {
     RectF location;
     float detectionConfidence;
     int color;
     String title;
   }
+
+
 }
