@@ -86,7 +86,7 @@ public abstract class CameraActivity extends AppCompatActivity
   private int yRowStride;
   private Runnable postInferenceCallback;
   private Runnable imageConverter;
-  public TextView nameOfObject, nameOfObjectInNativeLanguage;
+  public TextView nameOfObject, nameOfObjectInNativeLanguage,languageNameLabel ;
   private LinearLayout bottomSheetLayout;
   private LinearLayout gestureLayout;
   private BottomSheetBehavior<LinearLayout> sheetBehavior;
@@ -121,6 +121,7 @@ public abstract class CameraActivity extends AppCompatActivity
 
     nameOfObject = findViewById(R.id.nameOfObject);
     nameOfObjectInNativeLanguage = findViewById(R.id.nameOfObjectinNativeLanguage);
+    languageNameLabel = findViewById(R.id.languageName);
     threadsTextView = findViewById(R.id.threads);
     plusImageView = findViewById(R.id.plus);
     minusImageView = findViewById(R.id.minus);

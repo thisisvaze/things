@@ -18,6 +18,7 @@ package org.tensorflow.lite.examples.detection;
 import static android.view.KeyEvent.ACTION_DOWN;
 import static android.view.KeyEvent.KEYCODE_DPAD_LEFT;
 import static android.view.KeyEvent.KEYCODE_DPAD_RIGHT;
+import static android.view.KeyEvent.KEYCODE_ENTER;
 
 import android.graphics.Bitmap;
 import android.graphics.Bitmap.Config;
@@ -30,6 +31,8 @@ import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.media.ImageReader.OnImageAvailableListener;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.SystemClock;
 import android.speech.RecognitionListener;
 import android.util.Log;
@@ -97,7 +100,7 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
             TypedValue.COMPLEX_UNIT_DIP, TEXT_SIZE_DIP, getResources().getDisplayMetrics());
     borderedText = new BorderedText(textSizePx);
     borderedText.setTypeface(Typeface.MONOSPACE);
-    tracker = new MultiBoxTracker(this, nameOfObject, nameOfObjectInNativeLanguage, selectedLanguageCode);
+    tracker = new MultiBoxTracker(this, nameOfObject, nameOfObjectInNativeLanguage, languageNameLabel, selectedLanguageCode);
 
     int cropSize = TF_OD_API_INPUT_SIZE;
 
@@ -250,20 +253,21 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
   public boolean onKeyDown(int keyCode, KeyEvent event) {
     Log.d("KEY PRESSED",keyCode+"  "+event.toString());
     if(event.getAction() == ACTION_DOWN) {
-      if (keyCode == KEYCODE_DPAD_RIGHT) {
-
-        tracker.InitializeTranslator((selectedLanguageCode++)%4);
-
-      } else if (keyCode == KEYCODE_DPAD_LEFT) {
-        tracker.InitializeTranslator((selectedLanguageCode--)%4);
+      if (keyCode == KEYCODE_ENTER) {
+        selectedLanguageCode++;
+        tracker.setLanguagefromCode(selectedLanguageCode%3);
+//        final Handler handler = new Handler(Looper.getMainLooper());
+//        handler.postDelayed(new Runnable() {
+//          @Override
+//          public void run() {
+//            languageLabel.setText("");
+//          }
+//        }, 5000);
       }
     }
     return false;
   }
 
-  public void selectLanguage(int languageCode){
-
-  }
 
 
   // Which detection model to use: by default uses Tensorflow Object Detection API frozen

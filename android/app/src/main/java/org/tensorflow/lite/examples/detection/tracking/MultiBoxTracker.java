@@ -15,6 +15,7 @@ limitations under the License.
 
 package org.tensorflow.lite.examples.detection.tracking;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -25,6 +26,8 @@ import android.graphics.Paint.Join;
 import android.graphics.Paint.Style;
 import android.graphics.RectF;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import android.speech.tts.TextToSpeech;
 import android.text.TextUtils;
 import android.util.Log;
@@ -72,8 +75,10 @@ public class MultiBoxTracker implements TextToSpeech.OnInitListener {
     Color.parseColor("#AA33AA"),
     Color.parseColor("#0D0068")
   };
+  private  boolean languageRecentlyChanged = false;
   final List<Pair<Float, RectF>> screenRects = new LinkedList<Pair<Float, RectF>>();
   private final Logger logger = new Logger();
+  private int selectedLanguageCode;
   private final Queue<Integer> availableColors = new LinkedList<Integer>();
   private final List<TrackedRecognition> trackedObjects = new LinkedList<TrackedRecognition>();
   private final Paint boxPaint = new Paint();
@@ -83,18 +88,20 @@ public class MultiBoxTracker implements TextToSpeech.OnInitListener {
   private int frameWidth;
   private int frameHeight;
   private int sensorOrientation;
-  private Translator langTranslator;
-  private TextView nameOfObject, nameOfObjectInNativeLanguage;
-  private boolean modelDownloaded = false;
+  private Translator frenchTranslator, italianTranslator, japaneseTranslator;
+  private TextView nameOfObject, nameOfObjectInNativeLanguage, languageLabel;
+  private boolean japaneseModelDownloaded = false, italianModelDownloaded = false, frenchModelDownloaded = false;
   private String previousTextDisplayed="";
   private TextToSpeech textToSpeech;
+  public String selectedLanguageString = "French";
   private boolean textToSpeechIsReady = false;
 
-  public MultiBoxTracker(final Context context, TextView nameOfObject, TextView nameOfObjectInNativeLanguage, int selectedLanguageCode) {
+  public MultiBoxTracker(final Context context, TextView nameOfObject, TextView nameOfObjectInNativeLanguage, TextView languageLabel, int selectedLanguageCode) {
 
-    // Create an English-German translator:
-    // Create an English-German translator:
-    InitializeTranslator(selectedLanguageCode);
+    // Initialize all translators
+    InitializeFrenchTranslator();
+    InitializeItalianTranslator();
+    InitializeJapaneseTranslator();
 
     for (final int color : COLORS) {
       availableColors.add(color);
@@ -109,6 +116,8 @@ public class MultiBoxTracker implements TextToSpeech.OnInitListener {
 
     this.nameOfObject  = nameOfObject;
     this.nameOfObjectInNativeLanguage = nameOfObjectInNativeLanguage;
+    this.languageLabel = languageLabel;
+    this.selectedLanguageCode = selectedLanguageCode;
     textSizePx =
         TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP, TEXT_SIZE_DIP, context.getResources().getDisplayMetrics());
@@ -123,24 +132,23 @@ public class MultiBoxTracker implements TextToSpeech.OnInitListener {
     this.sensorOrientation = sensorOrientation;
   }
 
-  public void InitializeTranslator(int selectedLanguageCode){
+  public void InitializeJapaneseTranslator(){
     TranslatorOptions options =
             new TranslatorOptions.Builder()
                     .setSourceLanguage(TranslateLanguage.ENGLISH)
-                    .setTargetLanguage(getSelectedLanguagefromCode(selectedLanguageCode))
+                    .setTargetLanguage(TranslateLanguage.JAPANESE)
                     .build();
-    langTranslator =
+    japaneseTranslator =
             Translation.getClient(options);
     DownloadConditions conditions = new DownloadConditions.Builder()
             .requireWifi()
             .build();
-    langTranslator.downloadModelIfNeeded(conditions)
+    japaneseTranslator.downloadModelIfNeeded(conditions)
             .addOnSuccessListener(
                     new OnSuccessListener() {
                       @Override
                       public void onSuccess(Object o) {
-
-                        modelDownloaded = true;
+                        japaneseModelDownloaded = true;
                         Log.i("Model Downloaded", "MODEL DOWNLOADED");
 
                       }
@@ -151,31 +159,115 @@ public class MultiBoxTracker implements TextToSpeech.OnInitListener {
                       public void onFailure(@NonNull Exception e) {
                         // Model couldn’t be downloaded or other internal error.
                         // ...
-                        modelDownloaded = false;
+                        japaneseModelDownloaded = false;
+                        Log.i("Model Downloaded", "MODEL NOT DOWNLOADED");
+                      }
+                    });
+  }
+  public void InitializeItalianTranslator(){
+    TranslatorOptions options =
+            new TranslatorOptions.Builder()
+                    .setSourceLanguage(TranslateLanguage.ENGLISH)
+                    .setTargetLanguage(TranslateLanguage.ITALIAN)
+                    .build();
+    italianTranslator =
+            Translation.getClient(options);
+    DownloadConditions conditions = new DownloadConditions.Builder()
+            .requireWifi()
+            .build();
+
+    italianTranslator.downloadModelIfNeeded(conditions)
+            .addOnSuccessListener(
+                    new OnSuccessListener() {
+                      @Override
+                      public void onSuccess(Object o) {
+
+                        italianModelDownloaded = true;
+                        Log.i("Model Downloaded", "MODEL DOWNLOADED");
+
+                      }
+                    })
+            .addOnFailureListener(
+                    new OnFailureListener() {
+                      @Override
+                      public void onFailure(@NonNull Exception e) {
+                        // Model couldn’t be downloaded or other internal error.
+                        // ...
+                        italianModelDownloaded = false;
+                        Log.i("Model Downloaded", "MODEL NOT DOWNLOADED");
+                      }
+                    });
+  }
+  public void InitializeFrenchTranslator(){
+    TranslatorOptions options =
+            new TranslatorOptions.Builder()
+                    .setSourceLanguage(TranslateLanguage.ENGLISH)
+                    .setTargetLanguage(TranslateLanguage.FRENCH)
+                    .build();
+    frenchTranslator =
+            Translation.getClient(options);
+    DownloadConditions conditions = new DownloadConditions.Builder()
+            .requireWifi()
+            .build();
+
+//    final Handler handler = new Handler(Looper.getMainLooper());
+//    handler.postDelayed(new Runnable() {
+//      @Override
+//      public void run() {
+//        languageLabel.setText("");
+//      }
+//    }, 5000);
+    frenchTranslator.downloadModelIfNeeded(conditions)
+            .addOnSuccessListener(
+                    new OnSuccessListener() {
+                      @Override
+                      public void onSuccess(Object o) {
+
+                        frenchModelDownloaded = true;
+                        Log.i("Model Downloaded", "MODEL DOWNLOADED");
+
+                      }
+                    })
+            .addOnFailureListener(
+                    new OnFailureListener() {
+                      @Override
+                      public void onFailure(@NonNull Exception e) {
+                        // Model couldn’t be downloaded or other internal error.
+                        // ...
+                        frenchModelDownloaded = false;
                         Log.i("Model Downloaded", "MODEL NOT DOWNLOADED");
                       }
                     });
   }
 
-  public String getSelectedLanguagefromCode(int selectedLanguageCode){
-    switch (selectedLanguageCode){
-      case 0: if(textToSpeechIsReady){textToSpeech.setLanguage(Locale.FRENCH);}
-        return TranslateLanguage.FRENCH;
-      case 1:
-        if(textToSpeechIsReady){textToSpeech.setLanguage(Locale.ITALIAN);}
-        return TranslateLanguage.ITALIAN;
-      case 2:
-        if(textToSpeechIsReady){textToSpeech.setLanguage(Locale.GERMAN);}
-        return TranslateLanguage.GERMAN;
-      case 3:
-        if(textToSpeechIsReady){textToSpeech.setLanguage(Locale.JAPANESE);}
-        return TranslateLanguage.JAPANESE;
-      default:
-        if(textToSpeechIsReady){textToSpeech.setLanguage(Locale.FRENCH);}
-        return TranslateLanguage.FRENCH;
+  public void setLanguagefromCode(int langCode){
+    languageRecentlyChanged = true;
+    selectedLanguageCode = langCode;
+    if(langCode == 0)
+    {languageLabel.setText("French");
+      if(textToSpeechIsReady){textToSpeech.setLanguage(Locale.FRENCH);}}
+      else if(langCode == 1)
+      {languageLabel.setText("Italian");
+        if(textToSpeechIsReady){textToSpeech.setLanguage(Locale.ITALIAN);}}
+        else if(langCode == 2)
+        {languageLabel.setText("Japanese");
+          if(textToSpeechIsReady){textToSpeech.setLanguage(Locale.JAPANESE);}
     }
-  }
+    this.nameOfObject.setText("");
+    this.nameOfObjectInNativeLanguage.setText("");
 
+    final Handler handler = new Handler(Looper.getMainLooper());
+    handler.postDelayed(new Runnable() {
+      @Override
+      public void run() {
+        languageRecentlyChanged = false;
+       if(!languageRecentlyChanged){
+         languageLabel.setText("");
+       }
+        //Do something after 100ms
+      }
+    }, 3000);
+  }
   public synchronized void drawDebug(final Canvas canvas) {
     final Paint textPaint = new Paint();
     textPaint.setColor(Color.WHITE);
@@ -230,6 +322,7 @@ public class MultiBoxTracker implements TextToSpeech.OnInitListener {
       getFrameToCanvasMatrix().mapRect(trackedPos);
       boxPaint.setColor(recognition.color);
 
+      //calculating closest object that the user wants to percieve
       float cornerSize = Math.min(trackedPos.width(), trackedPos.height()) / 8.0f;
       canvas.drawRoundRect(trackedPos, cornerSize, cornerSize, boxPaint);
       if(recognition.detectionConfidence > 0.6 && Math.sqrt(Math.pow(240-(trackedPos.left + trackedPos.right)/2, 2) + Math.pow(240 -(trackedPos.bottom + trackedPos.top)/2,2))<closestObjectDistance){
@@ -248,47 +341,135 @@ public class MultiBoxTracker implements TextToSpeech.OnInitListener {
     }
 
     if(closestObject != null){
-      Log.i("This is to see: ", closestObject.title.toString());
+      Log.i("Saw this:", closestObject.title.toString());
 
       final String[] displayText = new String[2];
       displayText[1] = closestObject.title.toString();
-      langTranslator.translate(closestObject.title)
-              .addOnSuccessListener(
-                      new OnSuccessListener() {
-                        @Override
-                        public void onSuccess(Object o) {
+      Log.d("Selected Language", selectedLanguageCode+"");
+      switch (selectedLanguageCode){
+        case 0: frenchTranslator.translate(closestObject.title)
+                .addOnSuccessListener(
+                        new OnSuccessListener() {
+                          @Override
+                          public void onSuccess(Object o) {
 
 
-                          displayText[0] = o.toString();
-                          if(displayText[0] != null){
-                            nameOfObjectInNativeLanguage.setText(displayText[1]);
-                            nameOfObject.setText(displayText[0]+"\n");
-                           if(!previousTextDisplayed.equals(displayText[0])){
-                             textToSpeech.speak(displayText[0], TextToSpeech.QUEUE_FLUSH, null, null);
-                           }
-                            previousTextDisplayed = displayText[0];
-                            Log.i("translated thing:", displayText[0]);
+                            displayText[0] = o.toString();
+                            if(displayText[0] != null){
+                              nameOfObjectInNativeLanguage.setText(displayText[1]);
+                              nameOfObject.setText(displayText[0]+"\n");
+                              if(!previousTextDisplayed.equals(displayText[1])){
+                                textToSpeech.speak(displayText[0], TextToSpeech.QUEUE_FLUSH, null, null);
+                              }
+                              previousTextDisplayed = displayText[1];
+                              Log.i("translated thing:", displayText[0]);
+                            }
+
                           }
 
-                        }
+                        })
+                .addOnFailureListener(
+                        new OnFailureListener() {
+                          @Override
+                          public void onFailure(@NonNull Exception e) {
+                            // Error.
+                            // ...
+                          }
+                        });
+        break;
+        case 1: italianTranslator.translate(closestObject.title)
+                .addOnSuccessListener(
+                        new OnSuccessListener() {
+                          @Override
+                          public void onSuccess(Object o) {
 
-                      })
-              .addOnFailureListener(
-                      new OnFailureListener() {
-                        @Override
-                        public void onFailure(@NonNull Exception e) {
-                          // Error.
-                          // ...
-                        }
-                      });
+
+                            displayText[0] = o.toString();
+                            if(displayText[0] != null){
+                              nameOfObjectInNativeLanguage.setText(displayText[1]);
+                              nameOfObject.setText(displayText[0]+"\n");
+                              if(!previousTextDisplayed.equals(displayText[1])){
+                                textToSpeech.speak(displayText[0], TextToSpeech.QUEUE_FLUSH, null, null);
+                              }
+                              previousTextDisplayed = displayText[1];
+                              Log.i("translated thing:", displayText[0]);
+                            }
+
+                          }
+
+                        })
+                .addOnFailureListener(
+                        new OnFailureListener() {
+                          @Override
+                          public void onFailure(@NonNull Exception e) {
+                            // Error.
+                            // ...
+                          }
+                        });
+          break;
+        case 2: japaneseTranslator.translate(closestObject.title)
+                .addOnSuccessListener(
+                        new OnSuccessListener() {
+                          @Override
+                          public void onSuccess(Object o) {
 
 
+                            displayText[0] = o.toString();
+                            if(displayText[0] != null){
+                              nameOfObjectInNativeLanguage.setText(displayText[1]);
+                              nameOfObject.setText(displayText[0]+"\n");
+                              if(!previousTextDisplayed.equals(displayText[1])){
+                                textToSpeech.speak(displayText[0], TextToSpeech.QUEUE_FLUSH, null, null);
+                              }
+                              previousTextDisplayed = displayText[1];
+                              Log.i("translated thing:", displayText[0]);
+                            }
+
+                          }
+
+                        })
+                .addOnFailureListener(
+                        new OnFailureListener() {
+                          @Override
+                          public void onFailure(@NonNull Exception e) {
+                            // Error.
+                            // ...
+                          }
+                        });
+          break;
+        default: frenchTranslator.translate(closestObject.title)
+                .addOnSuccessListener(
+                        new OnSuccessListener() {
+                          @Override
+                          public void onSuccess(Object o) {
+                            displayText[0] = o.toString();
+                            if(displayText[0] != null){
+                              nameOfObjectInNativeLanguage.setText(displayText[1]);
+                              nameOfObject.setText(displayText[0]+"\n");
+                              if(!previousTextDisplayed.equals(displayText[0])){
+                                textToSpeech.speak(displayText[0], TextToSpeech.QUEUE_FLUSH, null, null);
+                              }
+                              previousTextDisplayed = displayText[0];
+                              Log.i("translated thing:", displayText[0]);
+                            }
+
+                          }
+
+                        })
+                .addOnFailureListener(
+                        new OnFailureListener() {
+                          @Override
+                          public void onFailure(@NonNull Exception e) {
+                            // Error.
+                            // ...
+                          }
+                        });
+      }
     }
     else{
       this.nameOfObject.setText("");
       this.nameOfObjectInNativeLanguage.setText("");
     }
-
   }
 
   private void processResults(final List<Recognition> results) {
