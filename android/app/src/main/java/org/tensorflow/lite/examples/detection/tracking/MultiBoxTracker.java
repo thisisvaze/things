@@ -88,9 +88,9 @@ public class MultiBoxTracker implements TextToSpeech.OnInitListener {
   private int frameWidth;
   private int frameHeight;
   private int sensorOrientation;
-  private Translator frenchTranslator, italianTranslator, japaneseTranslator;
+  private Translator frenchTranslator, italianTranslator, germanTranslator;
   private TextView nameOfObject, nameOfObjectInNativeLanguage, languageLabel;
-  private boolean japaneseModelDownloaded = false, italianModelDownloaded = false, frenchModelDownloaded = false;
+  private boolean germanModelDownloaded = false, italianModelDownloaded = false, frenchModelDownloaded = false;
   private String previousTextDisplayed="";
   private TextToSpeech textToSpeech;
   public String selectedLanguageString = "French";
@@ -101,7 +101,7 @@ public class MultiBoxTracker implements TextToSpeech.OnInitListener {
     // Initialize all translators
     InitializeFrenchTranslator();
     InitializeItalianTranslator();
-    InitializeJapaneseTranslator();
+    InitializeGermanTranslator();
 
     for (final int color : COLORS) {
       availableColors.add(color);
@@ -132,23 +132,23 @@ public class MultiBoxTracker implements TextToSpeech.OnInitListener {
     this.sensorOrientation = sensorOrientation;
   }
 
-  public void InitializeJapaneseTranslator(){
+  public void InitializeGermanTranslator(){
     TranslatorOptions options =
             new TranslatorOptions.Builder()
                     .setSourceLanguage(TranslateLanguage.ENGLISH)
-                    .setTargetLanguage(TranslateLanguage.JAPANESE)
+                    .setTargetLanguage(TranslateLanguage.GERMAN)
                     .build();
-    japaneseTranslator =
+    germanTranslator =
             Translation.getClient(options);
     DownloadConditions conditions = new DownloadConditions.Builder()
             .requireWifi()
             .build();
-    japaneseTranslator.downloadModelIfNeeded(conditions)
+    germanTranslator.downloadModelIfNeeded(conditions)
             .addOnSuccessListener(
                     new OnSuccessListener() {
                       @Override
                       public void onSuccess(Object o) {
-                        japaneseModelDownloaded = true;
+                        germanModelDownloaded = true;
                         Log.i("Model Downloaded", "MODEL DOWNLOADED");
 
                       }
@@ -159,7 +159,7 @@ public class MultiBoxTracker implements TextToSpeech.OnInitListener {
                       public void onFailure(@NonNull Exception e) {
                         // Model couldn’t be downloaded or other internal error.
                         // ...
-                        japaneseModelDownloaded = false;
+                        germanModelDownloaded = false;
                         Log.i("Model Downloaded", "MODEL NOT DOWNLOADED");
                       }
                     });
@@ -250,8 +250,8 @@ public class MultiBoxTracker implements TextToSpeech.OnInitListener {
       {languageLabel.setText("Italian");
         if(textToSpeechIsReady){textToSpeech.setLanguage(Locale.ITALIAN);}}
         else if(langCode == 2)
-        {languageLabel.setText("Japanese");
-          if(textToSpeechIsReady){textToSpeech.setLanguage(Locale.JAPANESE);}
+        {languageLabel.setText("German");
+          if(textToSpeechIsReady){textToSpeech.setLanguage(Locale.GERMAN);}
     }
     this.nameOfObject.setText("");
     this.nameOfObjectInNativeLanguage.setText("");
@@ -407,7 +407,7 @@ public class MultiBoxTracker implements TextToSpeech.OnInitListener {
                           }
                         });
           break;
-        case 2: japaneseTranslator.translate(closestObject.title)
+        case 2: germanTranslator.translate(closestObject.title)
                 .addOnSuccessListener(
                         new OnSuccessListener() {
                           @Override
