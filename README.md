@@ -1,4 +1,3 @@
-# things
 ![alt text](https://github.com/aadityavaze/things/blob/master/24.png)
 Since I arrived in Canada about 6 months ago, I’ve been trying to learn French through different techniques. I’ve tried some of the most popular apps such as Duolingo, completed certain French grammar exercises, and watched a bunch of french movies as well. Although I’ve caught some bits of grammar and vocabulary along the way, I feel that these techniques are not efficient. After a bit of research, I realized that conventional methods to learn languages are inefficient as they are devoid of a real context. Immersion can significantly accelerate the learning process and I was curious to build an app that could make learning languages fun and highly efficient for me and all the other language learners.
 
